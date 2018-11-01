@@ -8,6 +8,7 @@ class Thermocouple:
         self.csPin = gpioPin
 
     def temp_c(self,data):
+        print ('converting raw data: ', data)
         temp = data[0] << 8 | data[1]
         if temp & 0x0001:
             return float('NaN')  # Fault reading data.
