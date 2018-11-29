@@ -8,7 +8,7 @@ class Relay:
 
     def setState(self, state):
         self.relay.value(int(state))
-        print ("PIN %s set to %s" % (self.relayPin, int(state)))
+        #print ("PIN %s set to %s" % (self.relayPin, int(state)))
 
     def getState(self):
         return self.relay.value()
