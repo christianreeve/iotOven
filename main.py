@@ -6,6 +6,8 @@ import machine
 import time
 import json
 import uasyncio as asyncio
+import math
+import network
 
 
 # wifi config
@@ -13,11 +15,13 @@ ssid = "red" #Specify SSID
 wifipass = "321123red" # specify wifi password
 
 # mqtt config
+enableMqtt = True
+mqttClient = None
 mqttbroker = "broker.hivemq.com" # Specify broker DNS name or IP
 mqttport = "1883"
 mqttuser = ""
 mqttpass = ""
-mqttprefix = "iot-oven"
+#mqttprefix = "iot-oven"
 
 # global vars
 stateOvenTemp = 25
@@ -30,8 +34,10 @@ stateTargetTemp = 0
 
 # timings
 screenUpdateTime = 0.1
-tempUpdateTime = 1
-controllerUpdateTime = 1
+tempUpdateTime = 2
+controllerUpdateTime = 2
+wifiUpdateTime = 2
+mqttUpdateTime = 2
 
 # temp algorythm tuning
 tempDamperRange = 10
@@ -41,7 +47,6 @@ spi = machine.SPI(1, baudrate=12500000, sck=machine.Pin(14), miso=machine.Pin(12
 
 # init uart comms
 uart=machine.UART(1,tx=17,rx=16,baudrate=9600)
-#uartIRQ = uart.irq(trigger = UART.RX_ANY, priority = 1, handler = irq_fun, wake=machine.IDLE)
 end_cmd=b'\xFF\xFF\xFF'
 
 
@@ -63,7 +68,6 @@ elementRelays = {
 ############################
 # connect to wifi
 def connect():
-    import network
     sta_if = network.WLAN(network.STA_IF)
     if not sta_if.isconnected():
         print('connecting to network...')
@@ -110,7 +114,6 @@ def sub_cb(topic, msg):
     """
 
 """
-
 client = MQTTClient(mqttuser, mqttbroker, port=mqttport)
 client.set_callback(sub_cb)
 client.settimeout = settimeout
@@ -120,23 +123,11 @@ client.subscribe(b"supes/elementTop")
 client.subscribe(b"domoticz/out")
 """
 
-
 # reset elementRelays
 elementRelays[96].setState(1)
 elementRelays[97].setState(1)
 elementRelays[98].setState(1)
 elementRelays[99].setState(1)
-
-
-"""
-async def sender():
-    swriter = asyncio.StreamWriter(uart, {})
-    while True:
-        print ('s')
-        await swriter.awrite('get bGrill.val')
-        await swriter.awrite(end_cmd)
-        await asyncio.sleep(2)
-"""
 
 
 async def displayChecker():
@@ -193,9 +184,17 @@ async def tempChecker():
     swriter = asyncio.StreamWriter(uart, {})
     while True:
         await asyncio.sleep(tempUpdateTime)
-        stateOvenTemp = thermos['thermoMainOven'].getTemp()
+        s = thermos['thermoMainOven'].getTemp()
+        if math.isnan(s):
+            stateOvenTemp = -1
+        else:
+            stateOvenTemp = int(s)
         #print (stateOvenTemp)
-        stateWarmerTemp = thermos['thermoWarmerDraw'].getTemp()
+        s = thermos['thermoWarmerDraw'].getTemp()
+        if math.isnan(s):
+            stateWarmerTemp = -1
+        else:
+            stateWarmerTemp = int(s)
         #print (stateWarmerTemp)
 
 
@@ -240,13 +239,41 @@ async def ovenController():
 
 
 
+async def wifiController():
+    while True:
+        await asyncio.sleep(wifiUpdateTime)
+        sta_if = network.WLAN(network.STA_IF)
+        if not sta_if.isconnected():
+            print('Trying to connect to network...')
+            sta_if.active(True)
+            sta_if.connect(ssid, wifipass) # ssid, password
+            while not sta_if.isconnected():
+                pass
+        else:
+            pass
+
+async def mqttController():
+    global stateOvenTemp, stateWarmerTemp
+    global stateOven, stateOvenTop, stateGrill, stateLight, stateTargetTemp
+    global mqttClient
+    while True:
+        await asyncio.sleep(mqttUpdateTime)
+        if mqttClient is None:
+            mqttClient = MQTTClient(mqttuser, mqttbroker, port=mqttport)
+            mqttClient.connect()
+        else:
+            msg = """{"idx":94,"nvalue":0,"svalue":"%s"}""" % (str(stateWarmerTemp),)
+            mqttClient.publish("domoticz/in", msg)
+            msg = """{"idx":95,"nvalue":0,"svalue":"%s"}""" % (str(stateOvenTemp),)
+            mqttClient.publish("domoticz/in", msg)
+            print ('published to mqtt: %s' % (msg,))
 
 
-
+time.sleep_ms(2000)
 loop = asyncio.get_event_loop()
-#loop.create_task(sender())
 loop.create_task(displayChecker())
 loop.create_task(tempChecker())
 loop.create_task(ovenController())
-
+loop.create_task(wifiController())
+loop.create_task(mqttController())
 loop.run_forever()
