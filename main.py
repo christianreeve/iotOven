@@ -9,15 +9,15 @@ import uasyncio as asyncio
 
 
 # wifi config
-ssid = "red" #Specify SSID
-wifipass = "321123red" # specify wifi password
+ssid = "red" #Specify SSID
+wifipass = "321123red" # specify wifi password
 
 # mqtt config
-mqttbroker = "broker.hivemq.com" # Specify broker DNS name or IP
-mqttport = "1883"
-mqttuser = ""
-mqttpass = ""
-mqttprefix = "iot-oven"
+mqttbroker = "broker.hivemq.com" # Specify broker DNS name or IP
+mqttport = "1883"
+mqttuser = ""
+mqttpass = ""
+mqttprefix = "iot-oven"
 
 # global vars
 stateOvenTemp = 25
@@ -45,38 +45,38 @@ uart=machine.UART(1,tx=17,rx=16,baudrate=9600)
 end_cmd=b'\xFF\xFF\xFF'
 
 
-#Define relays and thermocouples - follow same syntax - name: definition
-thermos = {
-    'thermoMainOven': Thermocouple(gpioPin = 26, spi = spi),
-    'thermoWarmerDraw': Thermocouple(gpioPin = 27, spi = spi),
-}
-elementRelays = {
-    96: Relay(gpioPin = 2),  #
-    97: Relay(gpioPin = 0),  #
-    98: Relay(gpioPin = 15), #
-    99: Relay(gpioPin = 4),  #
-}
+#Define relays and thermocouples - follow same syntax - name: definition
+thermos = {
+    'thermoMainOven': Thermocouple(gpioPin = 26, spi = spi),
+    'thermoWarmerDraw': Thermocouple(gpioPin = 27, spi = spi),
+}
+elementRelays = {
+    96: Relay(gpioPin = 2),  #
+    97: Relay(gpioPin = 0),  #
+    98: Relay(gpioPin = 15), #
+    99: Relay(gpioPin = 4),  #
+}
 
 
-############################
+############################
 #Lets Go
-############################
-# connect to wifi
-def connect():
-    import network
-    sta_if = network.WLAN(network.STA_IF)
-    if not sta_if.isconnected():
-        print('connecting to network...')
-        sta_if.active(True)
-        sta_if.connect(ssid, wifipass) # ssid, password
-        while not sta_if.isconnected():
-            pass
-    print('network config:', sta_if.ifconfig())
-#connect()
-
-def settimeout(duration):
-    pass
-
+############################
+# connect to wifi
+def connect():
+    import network
+    sta_if = network.WLAN(network.STA_IF)
+    if not sta_if.isconnected():
+        print('connecting to network...')
+        sta_if.active(True)
+        sta_if.connect(ssid, wifipass) # ssid, password
+        while not sta_if.isconnected():
+            pass
+    print('network config:', sta_if.ifconfig())
+#connect()
+
+def settimeout(duration):
+    pass
+
 def send(cmd):
     uart.write(cmd)
     uart.write(end_cmd)
@@ -110,14 +110,14 @@ def sub_cb(topic, msg):
     """
 
 """
-
-client = MQTTClient(mqttuser, mqttbroker, port=mqttport)
-client.set_callback(sub_cb)
-client.settimeout = settimeout
-client.connect()
-client.subscribe(b"supes/elementBottom")
-client.subscribe(b"supes/elementTop")
-client.subscribe(b"domoticz/out")
+
+client = MQTTClient(mqttuser, mqttbroker, port=mqttport)
+client.set_callback(sub_cb)
+client.settimeout = settimeout
+client.connect()
+client.subscribe(b"supes/elementBottom")
+client.subscribe(b"supes/elementTop")
+client.subscribe(b"domoticz/out")
 """
 
 
